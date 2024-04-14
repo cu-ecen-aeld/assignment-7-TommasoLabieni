@@ -1,3 +1,9 @@
+# Faulty OOPS-Message when echo-ing to faulty driver!
+
+## The error
+Here's the oops-message output:
+
+```
 Unable to handle kernel NULL pointer dereference at virtual address 0000000000000000
 Mem abort info:
   ESR = 0x96000045
@@ -40,4 +46,31 @@ Call trace:
  el0t_64_sync+0x1a0/0x1a4
 Code: d2800001 d2800000 d503233f d50323bf (b900003f) 
 ---[ end trace 14c64c648a3ebb78 ]---
+```
 
+In which, the statements:
+
+`Unable to handle kernel NULL pointer dereference at virtual address 0000000000000000`
+and
+`pc : faulty_write+0x14/0x20 [faulty]`
+
+Indicates that we have a failure in faulty driver, 4 B into the function `faulty_write` (which is 0x10 B long) due to a NULL pointer dereference at address 0x0000000000000000.
+
+Here's the _objdump_ of the  `faulty_write` function:
+
+```
+Disassembly of section .text:
+
+0000000000000000 <faulty_write>:
+   0:	d503245f 	bti	c
+   4:	d2800001 	mov	x1, #0x0                   	// #0
+   8:	d2800000 	mov	x0, #0x0                   	// #0
+   c:	d503233f 	paciasp
+  10:	d50323bf 	autiasp
+  14:	b900003f 	str	wzr, [x1]
+  18:	d65f03c0 	ret
+  1c:	d503201f 	nop
+
+```
+
+In which the instruction `str	wzr, [x1]` is the one that causes the OOPS-Message.
